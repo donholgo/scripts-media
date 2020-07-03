@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+  echo >&2 "Usage: $(basename $0) file ..."
+  exit 1
+fi
+
+tmpdir=$(mktemp -d)
+for file; do
+  echo "$file"
+  base=$(basename "$file")
+  tmpfile="$tmpdir/$base"
+  convert -fuzz 20% -trim "$file" "$tmpfile" && touch -r "$file" "$tmpfile" && mv "$tmpfile" "$file"
+done
+rmdir "$tmpdir"
