@@ -1,0 +1,144 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+die "Usage: ".(basename $0)." file ..." unless @ARGV;
+
+my @fields = ('size', 'mimetype', 'w', 'h', 'r', 'time', 'file');
+
+my %data;
+my %used;
+my %length;
+$length{$_} = 0 foreach (@fields);
+$used{$_} = 0 foreach (@fields);
+my $total_seconds = 0;
+foreach my $file (@ARGV) {
+  $data{$file}{$_} = '' foreach (@fields);
+  $data{$file}{file} = $file;
+  my $size = -s $file;
+  $data{''}{size} += $size;
+  $size = insert_separator($size);
+  $data{$file}{size} = $size;
+
+  (my $cmdfile = $file) =~ s/"/\\"/g;
+  open EXIF, 'exiftool "'.$cmdfile.'" |' or die "can't execute exiftool: $!\n";;
+  while (<EXIF>) {
+    if (/^MIME Type\s+: (\S+)/) {
+      $data{$file}{mimetype} = $1;
+    }
+    if (/^Image Width\s+: (\d+)/) {
+      $data{$file}{w} = $1;
+    }
+    if (/^Image Height\s+: (\d+)/) {
+      $data{$file}{h} = $1;
+    }
+    if ($data{$file}{w} && $data{$file}{h}) {
+      $data{$file}{r} = r($data{$file}{w}, $data{$file}{h});
+    }
+    if (/^Duration\s+: (\S+)/) {
+      my $duration = $1;
+      if ($duration =~ /(\d+):(\d+):(\d+)/) {
+	$total_seconds += 3600*$1 + 60*$2 + $3;
+      } else {
+	$total_seconds += int($duration);
+	$duration = format_time($duration);
+      }
+      $data{$file}{time} = $duration;
+    }
+
+    foreach (keys %{$data{$file}}) {
+      $used{$_} = 1 if $data{$file}{$_};
+    }
+  }
+  close EXIF;
+
+  foreach (@fields) {
+    $length{$_} = length $data{$file}{$_} if $length{$_} < length $data{$file}{$_};
+  }
+}
+
+$data{''}{time} = format_time($total_seconds);
+$length{time} = length($data{''}{time});
+
+$data{''}{size} = insert_separator($data{''}{size});
+foreach (keys %{$data{''}}) {
+  $length{$_} = length $data{''}{$_} if $length{$_} < length $data{''}{$_};
+}
+
+foreach (@fields) {
+  printf "%-*s  ", $length{$_}, $_ if $used{$_};
+}
+print "\n";
+foreach (@fields) {
+  print '=' x $length{$_}, '  ' if $used{$_};
+}
+print "\n";
+
+foreach my $file (@ARGV) {
+  printf "%*s", $length{size}, $data{$file}{size};
+  printf "  %-*s", $length{mimetype}, $data{$file}{mimetype} if $used{mimetype};
+  printf "  %*s", $length{w}, $data{$file}{w} if $used{w};
+  printf "  %*s", $length{h}, $data{$file}{h} if $used{h};
+  printf "  %*s", $length{r}, $data{$file}{r} if $used{r};
+  printf "  %*s", $length{time}, $data{$file}{time} if $used{time};
+  print "  $file\n";
+}
+
+my $spacer = '  ';
+if ($used{time}) {
+  foreach ('mimetype', 'w', 'h', 'r') {
+    $spacer .= '  '.(' ' x $length{$_}) if $used{$_};
+  }
+}
+
+print "=" x $length{size};
+print $spacer, '=' x $length{time} if $used{time};
+print "\n";
+print $data{''}{size};
+print $spacer, $data{''}{time} if $used{time};
+print "\n";
+
+sub insert_separator {
+  my $x = shift;
+  1 while $x =~ s/(\d+)(\d{3})/$1.$2/;
+  return $x;
+}
+
+
+sub gcd {
+  my ($a, $b) = @_;
+  ($a, $b) = ($b, $a) if $a > $b;
+  while ($a) {
+    ($a, $b) = ($b % $a, $a);
+  }
+  return $b;
+}
+
+sub reduce {
+  my ($a, $b) = @_;
+  my $gcd = gcd($a, $b);
+  if ($gcd > 1) {
+    $a /= $gcd;
+    $b /= $gcd;
+  }
+  return ($a, $b);
+}
+
+sub r {
+  my ($a, $b) = @_;
+  if ($b == 0) {
+    return './.';
+  }
+  return join(':', reduce($a, $b));
+}
+
+sub format_time {
+  my $seconds = shift;
+  my $hours = int($seconds / 3600);
+  $seconds -= $hours * 3600;
+  my $minutes = int($seconds / 60);
+  $seconds -= $minutes * 60;
+  return sprintf "%i:%02i:%02i", $hours, $minutes, $seconds;
+}
