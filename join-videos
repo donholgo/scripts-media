@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Cwd 'abs_path';
+use File::Basename;
+use File::Temp qw/tempfile/;
+
+die "Usage: ".basename($0)." part1 ... partN outfile\n" unless @ARGV > 2;
+
+my $outfile = pop @ARGV;
+
+my ($fh, $tempfilename) = tempfile();
+print "temp file: $tempfilename\n";
+
+open TEMPFILE, '>', $tempfilename or die "can't write temp file $tempfilename: $!\n";
+foreach (@ARGV) {
+  die "No file $_.\n" unless -f;
+  print TEMPFILE "file ".abs_path($_)."\n";
+}
+close TEMPFILE;
+
+my @cmd = ('ffmpeg');
+push @cmd, '-f', 'concat';
+push @cmd, '-i', $tempfilename;
+push @cmd, '-c', 'copy';
+push @cmd, $outfile;
+system(@cmd);
+
+unlink $tempfilename;

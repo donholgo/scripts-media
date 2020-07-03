@@ -1,0 +1,180 @@
+#!/bin/bash
+
+minutes_to_seconds() {
+  if [[ "$1" =~ ([0-9]+):([0-9]+) ]]; then
+    echo $[60*${BASH_REMATCH[1]}+${BASH_REMATCH[2]}]
+  else
+    echo "$1"
+  fi
+}
+
+missing_argument() {
+  echo >&2 "Missing argument for '$1'."
+  exit 2
+}
+
+pad_final_number() {
+  len=${##}
+  for file; do
+    shopt -s nocasematch
+    if [[ $file =~ (.*)-([0-9]+)\.([a-z0-9]+) ]]; then
+      base="${BASH_REMATCH[1]}"
+      number="${BASH_REMATCH[2]}"
+      number=$((10#$number))  # remove leading 0(s)
+      extension="${BASH_REMATCH[3]}"
+      new=$(printf "%s-%0${len}i.%s" "$base" "$number" "$extension")
+      if [[ $new != $file ]]; then
+	if [[ -f $new ]]; then
+	  echo >&2 "Not renaming '$file' to '$new' (file exists)."
+	else
+	  mv "$file" "$new" && echo "$file -> $new" || echo >&2 "Error when renaming '$file' to '$new'!"
+	fi
+      fi
+    fi
+  done
+}
+
+
+
+
+if [ $# -eq 0 ]; then
+  cat >&2 <<EOF
+Usage:
+  $(basename $0) [options] videofile ...
+
+Options:
+  -start STARTTIME
+  -end ENDTIME
+  -duration DURATION / -seconds DURATION
+  -fps FPS
+  -continue (continue numbering after existing files)
+  -format FORMAT (default: jpg)
+  -rotate (90° clockwise)
+  -tv (scale to 1024:576)
+EOF
+  exit 1
+fi
+
+video=""
+start=0
+end=0
+duration=0
+fps=1
+continue_numbering=0
+rotate=0
+tv=0
+format="jpg"
+videos=()
+
+while [ $# -ne 0 ]; do
+  arg="$1"
+  shift
+  case "$arg" in
+    --)
+      videos+=("$@")
+      break
+      ;;
+    -start)
+      [[ -n $1 ]] || missing_argument "$arg"
+      start=$(minutes_to_seconds "$1")
+      shift
+      ;;
+    -end)
+      [[ -n $1 ]] || missing_argument "$arg"
+      end=$(minutes_to_seconds "$1")
+      shift
+      ;;
+    -duration|-seconds)
+      [[ -n $1 ]] || missing_argument "$arg"
+      duration=$(minutes_to_seconds "$1")
+      shift
+      ;;
+    -fps)
+      [[ -n $1 ]] || missing_argument "$arg"
+      fps="$1"
+      shift
+      ;;
+    -format)
+      [[ -n $1 ]] || missing_argument "$arg"
+      format="$1"
+      shift
+      ;;
+    -continue)
+      continue_numbering=1
+      ;;
+    -rotate)
+      rotate=1
+      ;;
+    -tv)
+      tv=1
+      ;;
+    *)
+      videos+=("$arg")
+      ;;
+  esac
+done
+
+if [[ ${#videos[@]} -eq 0 ]]; then
+  echo >&2 "Missing video file."
+  exit 2
+fi
+
+if [[ "$duration" -ne 0 && "$end" -ne 0 ]]; then
+  echo >&2 "Only one of -duration and -end can be specified."
+  exit 3
+fi
+
+if [[ "$end" -ne 0 ]]; then
+  duration=$((end-start))
+fi
+
+for video in "${videos[@]}"; do
+
+  base=$(basename "$video" | sed 's/\.[^.]*$//')
+  shopt -s nullglob
+  existing_files=("$base"-*."$format")
+  n_existing_files=${#existing_files[@]}
+
+  if [[ $n_existing_files -ne 0 && $continue_numbering -eq 0 ]]; then
+    echo >&2 "Existing files $base-*.$format found, please delete first or use '-continue'."
+    exit 2
+  fi
+
+  start_number=1
+  if [[ $continue_numbering -eq 1 ]]; then
+    if [[ $n_existing_files -eq 0 ]]; then
+      echo >&2 "No existing files found for '-continue' option, starting numbering at 1."
+    fi
+    start_number=$(( n_existing_files + 1 ))
+  fi
+
+  args=()
+  args+=(-loglevel warning -stats)
+  if [[ $start -ne 0 ]]; then
+    args+=('-ss' "$start")
+  fi
+  args+=("-i" "$video")
+  if [[ $duration -ne 0 ]]; then
+    args+=('-t' "$duration")
+  fi
+  if [[ $rotate -eq 1 ]]; then
+    args+=('-filter:v' 'transpose=1')   # for rotation
+  fi
+#  args+=('-qscale' 1)
+  args+=('-q:v' 0)
+  args+=('-r' "$fps")
+  args+=('-f' 'image2')
+  args+=('-strict' '-2')
+  if [[ $tv -eq 1 ]]; then
+    args+=('-vf' 'scale=1024:576')   # for TV grabs
+  fi
+
+  args+=('-start_number' "$start_number" )
+  args+=("$base-%02d.$format")
+
+  duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal "$video" | sed 's/\.[0-9]*$//')
+  printf 'Extracting %i fps from %s (%s) ...\n' "$fps" "$video" "$duration"
+  ffmpeg "${args[@]}"
+  pad_final_number "$base"-*."$format"
+
+done

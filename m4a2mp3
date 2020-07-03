@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for m4afile; do
+  mp3file=${m4afile/.m4a/.mp3}
+  if [ "$mp3file" != "$m4afile" ]; then
+    duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal "$m4afile" | sed 's/\.[0-9]*$//')
+    printf 'Converting %s (%s) to %s ...\n' "$m4afile" "$duration" "$mp3file"
+    ffmpeg -loglevel warning -stats -i "$m4afile" "$mp3file"
+  fi
+done

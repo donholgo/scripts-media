@@ -1,0 +1,28 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+  echo >&2 "Usage: $(basename $0) [direction] file ..."
+  echo >&2 "Possible direction values:"
+  echo >&2 "  -clock (clockwise, default)"
+  echo >&2 "  -cclock (counter-clockwise)"
+  exit 1
+fi
+
+direction='clock'
+if [ "$1" == "-clock" -o "$1" == "-cclock" ]; then
+  direction=${1#-}
+  shift
+fi
+
+
+for file; do
+  if [ -f "$file" ]; then
+    base="${file%.*}"
+    ext="${file##*.}"
+    out="$base-rotated.$ext"
+    ffmpeg -i "$file" -vf "transpose=$direction" -c:a copy "$out" \
+      && touch -r "$file" "$out"
+  else
+    echo >&2 "No file '$file' (skipping)."
+  fi
+done

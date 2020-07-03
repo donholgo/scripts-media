@@ -1,0 +1,95 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+die "Usage: ".(basename $0)." file ..." unless @ARGV;
+
+my %data;
+my %length;
+my @fields = ('width', 'height', 'ratio', 'size');
+$length{$_} = 0 foreach (@fields);
+
+my $h = 0;
+my $m = 0;
+my $s = 0;
+my $cs = 0;
+foreach my $file (@ARGV) {
+  my $duration;
+  my $height = 0;
+  my $width = 0;
+  open AVCONV, "avconv -i '$file' 2>&1 |" or die "can't execute avconv: $!\n";
+  while (<AVCONV>) {
+    if (/Duration: ((\d+):(\d+):(\d+)\.(\d+))/) {
+      $duration = $1;
+      $h += $2;
+      $m += $3;
+      $s += $4;
+      $cs += $5;
+    }
+    ($width, $height) = ($1, $2) if /Video:.* (\d+)x(\d+)/;
+  }
+  close AVCONV;
+  $data{$file}{duration} = $duration;
+  $data{$file}{width} = $width;
+  $data{$file}{height} = $height;
+  $data{$file}{ratio} = ratio($width, $height);
+  my $size = -s $file;
+  1 while $size =~ s/(\d+)(\d{3})/$1.$2/;
+  $data{$file}{size} = $size;
+  foreach (@fields) {
+    $length{$_} = length $data{$file}{$_} if $length{$_} < length $data{$file}{$_};
+  }
+}
+
+$s += $cs / 100;
+$cs %= 100;
+
+$m += $s / 60;
+$s %= 60;
+
+$h += $m / 60;
+$m %= 60;
+
+my $total_duration = sprintf "%02i:%02i:%02i.%02i", $h, $m, $s, $cs;
+
+foreach my $file (@ARGV) {
+  printf "%*s  %*ix%*i %-*s  %*s  %s\n",
+    length($total_duration), $data{$file}{duration},
+    $length{width}, $data{$file}{width},
+    $length{height}, $data{$file}{height},
+    $length{ratio} + 2, '('.$data{$file}{ratio}.')',
+    $length{size}, $data{$file}{size},
+    $file;
+}
+
+print "-" x length($total_duration), "\n", $total_duration, "\n";
+
+
+sub gcd {
+  my ($a, $b) = @_;
+  ($a, $b) = ($b, $a) if $a > $b;
+  while ($a) {
+    ($a, $b) = ($b % $a, $a);
+  }
+  return $b;
+}
+
+sub reduce {
+  my ($a, $b) = @_;
+  my $gcd = gcd($a, $b);
+  if ($gcd > 1) {
+    $a /= $gcd;
+    $b /= $gcd;
+  }
+  return ($a, $b);
+}
+
+sub ratio {
+  my ($a, $b) = @_;
+  if ($b == 0) {
+    return './.';
+  }
+  return join(':', reduce($a, $b));
+}

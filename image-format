@@ -1,0 +1,47 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+die "Usage: ".basename($0)." file ...\n" unless @ARGV;
+
+foreach (@ARGV) {
+  if (-f) {
+    my $format = qx(identify -format '%wx%h' "$_");
+    chomp $format;
+    if ($format =~ /(\d+)x(\d+)/) {
+      my $width = $1;
+      my $height = $2;
+      print "$_ ${width}x${height} (".ratio($width, $height).")\n";
+    }
+  } else {
+    warn "No file $_ (skipping).\n";
+  }
+}
+
+
+
+sub gcd {
+  my ($a, $b) = @_;
+  ($a, $b) = ($b, $a) if $a > $b;
+  while ($a) {
+    ($a, $b) = ($b % $a, $a);
+  }
+  return $b;
+}
+
+sub reduce {
+  my ($a, $b) = @_;
+  my $gcd = gcd($a, $b);
+  if ($gcd > 1) {
+    $a /= $gcd;
+    $b /= $gcd;
+  }
+  return ($a, $b);
+}
+
+sub ratio {
+  my ($a, $b) = @_;
+  return join(':', reduce($a, $b));
+}

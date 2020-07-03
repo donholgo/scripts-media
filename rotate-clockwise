@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]; then
+  echo >&2 "Usage: $0 degrees file ..."
+  exit 1
+fi
+
+degrees="$1"
+shift
+
+tmpfile="/tmp/rotate.$$"
+trap "rm -f $tmpfile" 0 1 2 15
+
+for file; do
+    convert -rotate $degrees "$file" "$tmpfile" \
+      && touch -r "$file" "$tmpfile" \
+      && mv "$tmpfile" "$file"
+done

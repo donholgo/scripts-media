@@ -1,0 +1,47 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+my $prefix = 'part';
+my $suffix = 'mp4';
+
+die "Usage: ".basename($0)." file start1-end1 ...\n" unless @ARGV > 1;
+
+my $video = shift;
+die "No file $video.\n" unless -f $video;
+
+my @times = ();
+for my $arg (@ARGV) {
+  $arg =~ s/\s+//g;
+  if ($arg =~ /^(\d+):(\d+)-(\d+):(\d+)$/) {
+    my $start_seconds = 60*$1 + $2;
+    my $end_seconds = 60*$3 + $4;
+    my $duration = $end_seconds - $start_seconds;
+    push @times, $start_seconds;
+    push @times, $duration;
+  } else {
+    die "Illegal time specification '$arg', format must be M:SS-M:SS.\n";
+  }
+}
+
+my $i = 1;
+my @partfiles;
+while (@times) {
+  my $start_seconds = shift @times;
+  my $duration = shift @times;
+  my @cmd = ('ffmpeg');
+  push @cmd, '-ss', $start_seconds;
+  push @cmd, '-i', $video;
+  #push @cmd, '-c', 'copy';
+  push @cmd, '-t', $duration;
+  my $partfile = sprintf "%s%0*i.%s", $prefix, length(@times)/2, $i, $suffix;
+  push @cmd, '-y', $partfile;
+  push @partfiles, $partfile;
+  print "Part $i (start $start_seconds, duration $duration) ...\n";
+  #system(@cmd);
+  ++$i;
+}
+
+print "Created part files: ".join(' ', @partfiles), "\n";

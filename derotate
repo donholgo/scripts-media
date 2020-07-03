@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+die "Usage: ".(basename $0)." file ...\n" unless @ARGV;
+
+my $tmpfile = "tmpfile.$$.jpg";
+foreach my $file (@ARGV) {
+  my $exif = `exiftool -Orientation -n "$file"`;
+  if ($exif =~ /(\d+)/) {
+    my $orientation = $1;
+    my $degrees = 0;
+    if ($orientation == 6) {
+      $degrees = 90;
+    } elsif ($orientation == 3) {
+      $degrees = 180;
+    } elsif ($orientation == 8) {
+      $degrees = 270;
+    }
+    if ($degrees) {
+      print "$file -> rotate $degrees degrees\n";
+      my $ts = (stat $file)[9];
+      system("convert -rotate $degrees '$file' $tmpfile && exiftool -Orientation=1 -n -o - $tmpfile >'$file'");
+      utime $ts, $ts, $file;
+      unlink $tmpfile;
+    }
+  }
+
+}
+

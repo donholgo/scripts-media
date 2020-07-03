@@ -1,0 +1,91 @@
+#!/bin/bash
+
+minutes_to_seconds() {
+  if [[ "$1" =~ ([0-9]+):([0-9]+) ]]; then
+    echo $[60*${BASH_REMATCH[1]}+${BASH_REMATCH[2]}]
+  else
+    echo "$1"
+  fi
+}
+
+
+if [ $# -eq 0 ]; then
+  cat >&2 <<EOF
+Usage:
+  $(basename $0) [options] infile outfile
+
+Options:
+  -start STARTTIME
+  -end ENDTIME
+  -duration DURATION / -seconds DURATION
+EOF
+  exit 1
+fi
+
+infile=""
+outfile=""
+start=0
+end=0
+duration=0
+
+while [ $# -ne 0 ]; do
+  if [[ "$1" == "-start" ]]; then
+    start=$(minutes_to_seconds "$2")
+    shift 2
+  elif [[ "$1" == "-end" ]]; then
+    end=$(minutes_to_seconds "$2")
+    shift 2
+  elif [[ "$1" == "-duration" || "$1" == "-seconds" ]]; then
+    duration=$(minutes_to_seconds "$2")
+    shift 2
+  elif [[ "$1" =~ ^[0-9]+$ ]]; then
+    fps="$1"
+    shift
+  elif [[ "$infile" == "" ]]; then
+    infile="$1"
+    shift
+  elif [[ "$outfile" == "" ]]; then
+    outfile="$1"
+    shift
+  else
+    echo >&2 "Unrecognized argument."
+    exit 1
+  fi
+done
+
+if [ "$infile" == '' ]; then
+  echo >&2 "Missing 'in' video."
+  exit 2
+fi
+
+if [ "$outfile" == '' ]; then
+  echo >&2 "Missing 'out' video."
+  exit 2
+fi
+
+if [[ "$duration" -ne 0 && "$end" -ne 0 ]]; then
+  echo >&2 "Only one of -duration and -end can be specified."
+  exit 3
+fi
+
+if [[ "$end" -ne 0 ]]; then
+  duration=$[$end-$start]
+fi
+
+base=$(basename "$infile" | sed 's/\.[^.]*$//')
+
+args=()
+if [[ $start -ne 0 ]]; then
+  args+=('-ss' "$start")
+fi
+args+=("-i" "$infile")
+if [[ $duration -ne 0 ]]; then
+  args+=('-t' "$duration")
+fi
+#args+=('-qscale' 1)
+#args+=('-f' 'image2')
+#args+=('-strict' '-2')
+args+=("$outfile")
+
+echo "command: ffmpeg ${args[@]}"
+ffmpeg "${args[@]}"
