@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+die "Usage:\n  ".(basename $0)." positions infile outfile\n[position = (tblr)+]\n" unless @ARGV == 3;
+my $positions = shift;
+my $infile = shift;
+my $outfile = shift;
+die "infile and outfile must be different\n" if $infile eq $outfile;
+
+my $ident = `identify $infile`;
+if ($ident =~ /JPEG (\d+)x(\d+)/) {
+  my ($width, $height) = ($1, $2);
+  my ($x, $y) = (0, 0);
+  foreach my $d (split(//, $positions)) {
+    if ($d eq "t") {
+      ++$y;
+      --$height;
+    } elsif ($d eq "b") {
+      --$height;
+    } elsif ($d eq "l") {
+      ++$x;
+      --$width;
+    } elsif ($d eq "r") {
+      --$width;
+    }
+  }
+  system("convert", "-crop", "${width}x${height}+${x}+${y}", $infile, $outfile);
+} else {
+  die "Couldn't get JPEG info from 'identify', aborting.\n";
+}
