@@ -1,0 +1,26 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+die "Usage: ".(basename $0)." file ...\n" unless @ARGV == 1;
+
+foreach my $file (@ARGV) {
+  my $identify = `identify $file`;
+  if ($identify =~ / (\d+)x(\d+) /) {
+    my $height = $1;
+    my $width = $2;
+    my $gcf = gcf($height, $width);
+    print "$file: w=$width, h=$height, r=", $width/$gcf, ':', $height/$gcf, "\n";
+  }
+}
+
+
+sub gcf {
+  my ($x, $y) = @_;
+  ($x, $y) = ($y, $x % $y) while $y;
+  return $x;
+}
+
+
