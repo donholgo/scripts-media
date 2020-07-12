@@ -4,8 +4,12 @@ use strict;
 use warnings;
 use File::Basename;
 
-die "Usage:\n  ".(basename $0)." positions infile outfile\n[position = (tblr)+]\n" unless @ARGV == 3;
+die "Usage:\n  ".(basename $0)." where infile outfile\n\nCuts the specified amount of pixels at the border(s) of the given image.\nFormat for 'where': ([0-9]*[tblr])+, e.g. 't4l2r' (optionally with commas, 't,4l,2r').\n" unless @ARGV == 3;
+
 my $positions = shift;
+$positions =~ tr/ ,//d;
+die "Illegal format for cut specification\n" if $positions !~ /^(\d*[tblr])+$/;
+
 my $infile = shift;
 my $outfile = shift;
 die "infile and outfile must be different\n" if $infile eq $outfile;
@@ -14,17 +18,19 @@ my $ident = `identify $infile`;
 if ($ident =~ /JPEG (\d+)x(\d+)/) {
   my ($width, $height) = ($1, $2);
   my ($x, $y) = (0, 0);
-  foreach my $d (split(//, $positions)) {
-    if ($d eq "t") {
-      ++$y;
-      --$height;
-    } elsif ($d eq "b") {
-      --$height;
-    } elsif ($d eq "l") {
-      ++$x;
-      --$width;
-    } elsif ($d eq "r") {
-      --$width;
+  while ($positions =~ /(\d*)([tblr])/g) {
+    my $n = $1 || 1;
+    my $where = $2;
+    if ($where eq "t") {
+      $y += $n;
+      $height -= $n;
+    } elsif ($where eq "b") {
+      $height -= $n;
+    } elsif ($where eq "l") {
+      $x += $n;
+      $width -= $n;
+    } elsif ($where eq "r") {
+      $width -= $n;
     }
   }
   system("convert", "-crop", "${width}x${height}+${x}+${y}", $infile, $outfile);
