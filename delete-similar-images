@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+my $test = 0;
+my $threshold = 90;
+
+die "Usage: ".(basename $0)." file ...\n" unless @ARGV;
+
+my $cmd = "findimagedupes -t $threshold% ";
+$cmd .= join(' ', map { text_to_shell_lit($_) } @ARGV);
+
+open DUPES, "$cmd |" or die "can't open pipe: $!\n";
+while (<DUPES>) {
+  chomp;
+  #print "\nduplicates: $_\n";
+  $_ = " $_";
+  my @files = split / \//;
+  shift @files;
+  @files = sort map { "/$_" } @files;
+  print "[.] $files[0]\n";
+  for (my $i = 1; $i < @files; ++$i) {
+    print "[x] $files[$i]\n";
+    unless($test) {
+      unlink $files[$i] or warn "can't delete: $!\n";
+    }
+  }
+}
+close DUPES;
+
+
+
+sub text_to_shell_lit {
+  return $_[0] if $_[0] =~ /^[a-zA-Z0-9_\-]+\z/;
+  my $s = $_[0];
+  $s =~ s/'/'\\''/g;
+  return "'$s'";
+}

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ $# -ne 5 ]; then
+  echo >&2 "Usage: $(basename $0) top-left bottom-left top-right bottom-right target"
+  exit 1
+fi
+
+tl="$1"
+bl="$2"
+tr="$3"
+br="$4"
+
+montage $tl $tr $bl $br -geometry +0+0 -tile 2x2 "$5"
+
+#for file in $@; do
+#  identify $file
+#done
