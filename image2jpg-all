@@ -1,0 +1,26 @@
+#!/bin/bash
+
+base=$(basename -- "$0")
+files=("$@")
+if [[ $# -eq 0 ]]; then
+  shopt -s nocaseglob nullglob
+  files=(*.bmp *.gif *.png)
+  if [[ ${#files[@]} -eq 0 ]]; then
+    printf >&2 "%s: no files to convert, exiting.\n" "$base"
+    exit 1
+  fi
+fi
+
+for file in "${files[@]}"; do
+  jpg=${file%.*}.jpg
+  if [[ $jpg != $file ]]; then
+    if [ -f "$jpg" ]; then
+      printf >&2 "%s: not converting %s to %s (target file exists already).\n" "$base" "$file" "$jpg"
+    else
+      printf "%s: %s -> %s\n" "$base" "$file" "$jpg"
+      convert "$file" "$jpg" && touch -r "$file" "$jpg" && rm "$file"
+    fi
+  else
+    printf >&2 "%s: '%s' already has 'jpg' extension, skipping.\n" "$base" "$file"
+  fi
+done

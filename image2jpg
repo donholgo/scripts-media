@@ -1,0 +1,22 @@
+#!/bin/bash
+
+base=$(basename -- "$0")
+if [ $# -eq 0 ]; then
+  printf >&2 "Usage: %s image ...\n" "$base"
+  exit 1
+fi
+
+for file; do
+  jpg=${file%.*}.jpg
+  if [[ $jpg != $file ]]; then
+    if [ -f "$jpg" ]; then
+      printf >&2 "%s: %s exists, not overwriting.\n" "$base" "$jpg"
+    else
+      printf "%s: %s -> %s\n" "$base" "$file" "$jpg"
+      convert "$file" "$jpg" && touch -r "$file" "$jpg"
+    fi
+  else
+    printf >&2 "%s: '%s' already has 'jpg' extension, skipping.\n" "$base" "$file"
+  fi
+done
+
