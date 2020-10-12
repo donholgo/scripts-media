@@ -5,10 +5,10 @@ files=("$@")
 if [[ $# -eq 0 ]]; then
   shopt -s nocaseglob nullglob
   files=(*.bmp *.gif *.png *.webp)
-  if [[ ${#files[@]} -eq 0 ]]; then
-    printf >&2 "%s: no files to convert, exiting.\n" "$base"
-    exit 1
-  fi
+#  if [[ ${#files[@]} -eq 0 ]]; then
+#    printf >&2 "%s: no files to convert, exiting.\n" "$base"
+#    exit 1
+#  fi
 fi
 
 for file in "${files[@]}"; do
