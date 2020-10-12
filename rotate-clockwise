@@ -8,7 +8,7 @@ fi
 degrees="$1"
 shift
 
-tmpfile="/tmp/rotate.$$"
+tmpfile=$(mktemp "rotate.XXXXXX")
 trap "rm -f $tmpfile" 0 1 2 15
 
 for file; do
