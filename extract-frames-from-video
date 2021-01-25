@@ -129,6 +129,10 @@ if [[ "$end" -ne 0 ]]; then
 fi
 
 for video in "${videos[@]}"; do
+  if [[ ! -f $video ]]; then
+    echo >&2 "No file '$video'."
+    continue
+  fi
 
   base=$(basename "$video" | sed 's/\.[^.]*$//')
   shopt -s nullglob
