@@ -50,6 +50,7 @@ Options:
   -duration DURATION / -seconds DURATION
   -fps FPS
   -continue (continue numbering after existing files)
+  -suffix SUFFIX (add suffix before running number)
   -format FORMAT (default: jpg)
   -rotate (90° clockwise)
   -tv (scale to 1024:576)
@@ -66,6 +67,7 @@ continue_numbering=0
 rotate=0
 tv=0
 format="jpg"
+suffix=""
 videos=()
 
 while [ $# -ne 0 ]; do
@@ -104,6 +106,11 @@ while [ $# -ne 0 ]; do
     -continue)
       continue_numbering=1
       ;;
+    -suffix)
+      [[ -n $1 ]] || missing_argument "$arg"
+      suffix="$1"
+      shift
+      ;;
     -rotate)
       rotate=1
       ;;
@@ -137,6 +144,7 @@ for video in "${videos[@]}"; do
   fi
 
   base=$(basename "$video" | sed 's/\.[^.]*$//')
+  [[ -n $suffix ]] && base="$base-$suffix"
   shopt -s nullglob
   existing_files=("$base"-*."$format")
   n_existing_files=${#existing_files[@]}
