@@ -1,0 +1,24 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+  echo >&2 "Usage: $(basename $0) zipfile ..."
+  exit 1
+fi
+
+for zipfile; do
+  if [[ ! -f $zipfile ]]; then
+    printf >&2 'No file %s.\n' "$zipfile"
+    continue
+  fi
+  if [[ $zipfile != *.zip ]]; then
+    printf >&2 '%s: no zipfile file.\n' "$zipfile"
+    continue
+  fi
+  srtfile=$(unzip -Z1 "$zipfile" | grep '\.srt$')
+  if [[ -z $srtfile ]]; then
+    printf >&2 'No srt file found in %s.' "$zipfile"
+    continue
+  fi
+  printf "Extracting '%s' from '%s' ...\n" "$srtfile" "$zipfile"
+  unzip "$zipfile" "$srtfile"
+done
