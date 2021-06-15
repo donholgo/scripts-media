@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+  echo >&2 "Usage: $(basename $0) ..."
+  exit 1
+fi
+
+tmpfile=$(mktemp "tmp.XXXXXX.mp4")
+trap "rm -f $tmpfile" EXIT
+
+for file; do
+  ffmpeg -y -i "$file" -c copy -map 0 -brand mp42 "$tmpfile" &&
+    mv "$tmpfile" "$file"
+done
