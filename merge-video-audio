@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [[ $# -ne 3 ]]; then
+  echo >&2 "Usage: videofile audiofile outfile"
+  exit 1
+fi
+
+videofile=$1
+audiofile=$2
+outfile=$3
+
+if [[ ! -f $videofile ]]; then
+  echo >&2 "No file $videofile."
+  exit 2
+fi
+
+if [[ ! -f $audiofile ]]; then
+  echo >&2 "No file $audiofile."
+  exit 2
+fi
+
+ffmpeg -y \
+  -i "$videofile" \
+  -i "$audiofile" \
+  -c:v copy -c:a aac \
+  -map 0:v:0 -map 1:a:0 \
+  "$outfile"
