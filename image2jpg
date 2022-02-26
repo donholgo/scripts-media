@@ -8,8 +8,15 @@ fi
 
 for file; do
   jpg=${file%.*}.jpg
-  if [[ $jpg != $file ]]; then
-    if [ -f "$jpg" ]; then
+  if [[ -f $jpg ]]; then
+    printf >&2 "'%s' exists already, skipping.\n" "$jpg"
+  elif [[ $jpg != $file ]]; then
+    ext=${file##*.}
+    ext=${ext,,}
+    if [[ $ext == 'heic' ]]; then
+      printf "%s: %s -> %s\n" "$base" "$file" "$jpg"
+      heif-convert "$file" "$jpg" >/dev/null && touch -r "$file" "$jpg"
+    elif [ -f "$jpg" ]; then
       printf >&2 "%s: %s exists, not overwriting.\n" "$base" "$jpg"
     else
       printf "%s: %s -> %s\n" "$base" "$file" "$jpg"
