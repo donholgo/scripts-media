@@ -1,0 +1,38 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+  echo >&2 "Usage: $(basename $0) video ..."
+  exit 1
+fi
+
+ffmpeg_options=(-loglevel warning -stats)
+
+for video; do
+  if [[ ! -f $video ]]; then
+    echo >&2 "No file $video."
+    continue
+  fi
+
+  tmp_trf=$(mktemp 'XXXXXX.trf')
+  trap "rm -f $tmp_trf" EXIT
+
+  printf 'Analyze %s ...\n' "$video"
+  ffmpeg "${ffmpeg_options[@]}" -i "$video" -vf vidstabdetect=result="$tmp_trf" -f null -
+
+  result="stabilized_$video"
+  printf 'Transform to %s ...\n' "$result"
+  ffmpeg "${ffmpeg_options[@]}" -i "$video" -vf vidstabtransform=input="$tmp_trf" "$result" &&
+  printf 'Transformed: %s -> %s\n' "$video" "$result"
+
+  rm -f "$tmp_trf"
+done
+
+
+
+# http://underpop.online.fr/f/ffmpeg/help/vidstabdetect.htm.gz
+# vidstabdetect=stepsize=32:shakiness=10:accuracy=10:result=transforms.trf
+
+# http://underpop.online.fr/f/ffmpeg/help/vidstabtransform.htm.gz
+# vidstabtransform=input=transforms.trf:zoom=0:smoothing=10,unsharp=5:5:0.8:3:3:0.4 
+
+# -vcodec libx264 -tune film -acodec copy -preset slow
