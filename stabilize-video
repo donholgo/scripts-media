@@ -7,6 +7,16 @@ fi
 
 ffmpeg_options=(-loglevel warning -stats)
 
+# detect options
+shakiness=5  # default: 5
+accuracy=15  # default: 15
+stepsize=6   # default: 6
+
+# transform options
+smoothing=10  # default: 10
+zoom=0        # default: 0
+unsharp="5:5:0.8:3:3:0.4"
+
 for video; do
   if [[ ! -f $video ]]; then
     echo >&2 "No file $video."
@@ -17,11 +27,17 @@ for video; do
   trap "rm -f $tmp_trf" EXIT
 
   printf 'Analyze %s ...\n' "$video"
-  ffmpeg "${ffmpeg_options[@]}" -i "$video" -vf vidstabdetect=result="$tmp_trf" -f null -
+  ffmpeg "${ffmpeg_options[@]}" \
+    -i "$video" \
+    -vf vidstabdetect=stepsize=$stepsize:shakiness=$shakiness:accuracy=$accuracy:result="$tmp_trf" \
+    -f null -
 
   result="stabilized_$video"
   printf 'Transform to %s ...\n' "$result"
-  ffmpeg "${ffmpeg_options[@]}" -i "$video" -vf vidstabtransform=input="$tmp_trf" "$result" &&
+  ffmpeg "${ffmpeg_options[@]}" \
+    -i "$video" \
+    -vf vidstabtransform=input="$tmp_trf":zoom=$zoom:smoothing=$smoothing,unsharp="$unsharp" \
+    "$result"
   printf 'Transformed: %s -> %s\n' "$video" "$result"
 
   rm -f "$tmp_trf"
@@ -36,3 +52,8 @@ done
 # vidstabtransform=input=transforms.trf:zoom=0:smoothing=10,unsharp=5:5:0.8:3:3:0.4 
 
 # -vcodec libx264 -tune film -acodec copy -preset slow
+
+
+# Option für Ausgabedatei
+# (mit Escape-Sequenzen für Schleifen?)
+# Ausgabeverzeichnis?
