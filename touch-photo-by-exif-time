@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use File::Basename;
 
-die "Usage: ".(basename $0)." file ..." unless @ARGV;
+die "Usage: ".(basename $0)." file ...\n" unless @ARGV;
 
 foreach my $file (@ARGV) {
   #open INFO, "identify -verbose $file |" or die "couldn't open pipe: $!\n";
