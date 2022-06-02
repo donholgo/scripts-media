@@ -1,5 +1,10 @@
 #!/bin/bash
 
+video_duration_hms() {
+  ffprobe -show_format "$1" 2>&1 | awk -F= '$1 == "duration" { seconds = sprintf("%.0f", $2); printf("%d:%02d:%02d\n",seconds/60/60,seconds/60,seconds%60) }'
+}
+
+
 if [ $# -eq 0 ]; then
   echo >&2 "Usage: $(basename $0) video ..."
   exit 1
@@ -17,6 +22,8 @@ smoothing=10  # default: 10
 zoom=0        # default: 0
 unsharp="5:5:0.8:3:3:0.4"
 
+trap "exit" INT
+i=1
 for video; do
   if [[ ! -f $video ]]; then
     echo >&2 "No file $video."
@@ -26,19 +33,25 @@ for video; do
   tmp_trf=$(mktemp 'XXXXXX.trf')
   trap "rm -f $tmp_trf" EXIT
 
-  printf 'Analyze %s ...\n' "$video"
+  duration=$(video_duration_hms "$video")
+  printf '==='
+  if [[ $# -gt 1 ]]; then
+    printf ' (%i/%i)' $((i++)) $#
+  fi
+  printf ' %s (%s) ===\n' "$video" "$duration"
+  printf "1) Analyze %s ...\n" "$video"
   ffmpeg "${ffmpeg_options[@]}" \
     -i "$video" \
     -vf vidstabdetect=stepsize=$stepsize:shakiness=$shakiness:accuracy=$accuracy:result="$tmp_trf" \
     -f null -
 
   result="stabilized_$video"
-  printf 'Transform to %s ...\n' "$result"
+  printf '2) Transform to %s ...\n' "$result"
   ffmpeg "${ffmpeg_options[@]}" \
     -i "$video" \
     -vf vidstabtransform=input="$tmp_trf":zoom=$zoom:smoothing=$smoothing,unsharp="$unsharp" \
     "$result"
-  printf 'Transformed: %s -> %s\n' "$video" "$result"
+      printf 'Transformed: %s -> %s\n' "$video" "$result"
 
   rm -f "$tmp_trf"
 done
