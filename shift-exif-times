@@ -1,0 +1,53 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+my $basename = basename $0;
+my $usage = <<EOF;
+Usage:
+  $basename <shifttime> <file> ...
+
+<shifttime> can have one of the formats
+  sec
+  min:sec
+  hrs:min:sec
+  days:hrs:min:sec
+  months:days:hrs:min:sec
+  years:months:days:hrs:min:sec
+optionally preceded by '-'.  
+EOF
+
+die $usage unless @ARGV >= 2;
+
+my $shifttime = shift;
+
+my $sign = 1;
+my $days = 0;
+my $hours = 0;
+my $minutes = 0;
+my $seconds = 0;
+
+if ($shifttime !~ /^-?([0-9]+:){0,3}[0-9]+$/) {
+  warn "Invalid shift time specification.\n";
+  exit 1;
+}
+
+if ($shifttime =~ /-(.*)/) {
+  $sign = -1;
+  $shifttime = $1;
+}
+
+my @t = split /:/, $shifttime;
+unshift @t, 0 while @t < 6;
+my $difftime = join(':', @t[0..2]).' '.join(':', @t[3..5]);
+
+my $option = '-AllDates'.($sign == 1 ? '+' : '-').'='.$difftime;
+
+foreach my $file (@ARGV) {
+  print "$file\n";
+  system('exiftool', '-preserve', '-quiet', $option, $file);   # -overwrite_original?
+  my $original = $file.'_original';
+  system('touch', '-r', $original, $file);
+}
