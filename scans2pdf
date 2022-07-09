@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# ImageMagick configuration (/etc/ImageMagick-6/policy.xml) must allow
+# read/write for PDF:
+#   <policy domain="coder" rights="read|write" pattern="PDF" />
+# see: https://stackoverflow.com/questions/42928765/convertnot-authorized-aaaa-error-constitute-c-readimage-453
+
+if [ $# -eq 0 ]; then
+  echo >&2 "Usage: $(basename $0) file ..."
+  exit 1
+fi
+
+declare -A basename_helper=()
+declare -A tmpfile_for_file
+tmpfiles=()
+
+for file; do
+  base=${file%.jpg}
+  base=${base%-?}
+  basename_helper["$base"]=1
+#  echo "file $file has base $base"
+
+  tmpfile="$(mktemp --suffix='.jpg')"
+#  echo "creating tmpfile $tmpfile for $file ..."
+  echo "Resizing $file ..."
+  convert -resize 50% "$file" "$tmpfile"
+  tmpfile_for_file["$file"]=$tmpfile
+  tmpfiles+=("$tmpfile")
+done
+
+basenames=("${!basename_helper[@]}")
+for base in "${basenames[@]}"; do
+  pdffile="$base.pdf"
+#  echo "tmpfiles for $pdffile:"
+
+  tmpfiles_for_base=()
+  for file; do
+    filebase=${file%.jpg}
+    filebase=${filebase%-?}
+    if [[ $base == $filebase ]]; then
+      tmpfile=${tmpfile_for_file[$file]}
+      tmpfiles_for_base+=("$tmpfile")
+#      echo "  - $tmpfile"
+    fi
+  done
+
+#  echo "Generating $pdffile from ${tmpfiles_for_base[@]} ..."
+  echo "Generating $pdffile ..."
+  convert -page a4 -density 72 "${tmpfiles_for_base[@]}" "$pdffile"
+done
+
+for tmpfile in "${tmpfiles[@]}"; do
+#  echo "removing tmpfile $tmpfile ..."
+  rm "$tmpfile"
+done
