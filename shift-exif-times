@@ -9,14 +9,13 @@ my $usage = <<EOF;
 Usage:
   $basename <shifttime> <file> ...
 
-<shifttime> can have one of the formats
-  sec
-  min:sec
-  hrs:min:sec
-  days:hrs:min:sec
-  months:days:hrs:min:sec
-  years:months:days:hrs:min:sec
-optionally preceded by '-'.  
+<shifttime> has the format
+  [-][<years>y][<months>M][<days>d][<hours>h][<minutes>m][<seconds>s]
+e.g.
+  2d4h (2 days, 4 hours)
+  -1h10m50s (minus 1 hour, 10 minutes, 50 seconds)
+
+All components are optional, but at least one time part must be present.
 EOF
 
 die $usage unless @ARGV >= 2;
@@ -24,23 +23,29 @@ die $usage unless @ARGV >= 2;
 my $shifttime = shift;
 
 my $sign = 1;
-my $days = 0;
-my $hours = 0;
-my $minutes = 0;
-my $seconds = 0;
 
-if ($shifttime !~ /^-?([0-9]+:){0,3}[0-9]+$/) {
-  warn "Invalid shift time specification.\n";
-  exit 1;
-}
+$shifttime =~ s/\s//g;
+$shifttime =~ s/^\+//;
 
-if ($shifttime =~ /-(.*)/) {
+if ($shifttime =~ /^-(.*)/) {
   $sign = -1;
   $shifttime = $1;
 }
 
-my @t = split /:/, $shifttime;
-unshift @t, 0 while @t < 6;
+die $usage unless $shifttime;
+
+my @units = ('y', 'M', 'd', 'h', 'm', 's');
+my @t;
+foreach my $unit (@units) {
+  if ($shifttime =~ /^(.*?)([\d]+)$unit(.*)$/) {
+    push @t, $2;
+    $shifttime = $1.$3;
+  } else {
+    push @t, 0;
+  }
+}
+
+die $usage if $shifttime;
 my $difftime = join(':', @t[0..2]).' '.join(':', @t[3..5]);
 
 my $option = '-AllDates'.($sign == 1 ? '+' : '-').'='.$difftime;
