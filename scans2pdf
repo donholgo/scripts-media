@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -
 
 # ImageMagick configuration (/etc/ImageMagick-6/policy.xml) must allow
 # read/write for PDF:

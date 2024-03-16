@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -
 
 if [ $# -ne 5 ]; then
   echo >&2 "Usage: $(basename $0) top-left bottom-left top-right bottom-right target"

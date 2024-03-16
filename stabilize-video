@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -
 
 video_duration_hms() {
   ffprobe -show_format "$1" 2>&1 | awk -F= '$1 == "duration" { seconds = sprintf("%.0f", $2); printf("%d:%02d:%02d\n",seconds/60/60,seconds/60,seconds%60) }'
