@@ -1,0 +1,45 @@
+#!/bin/bash -
+
+scriptname=$(basename -- "$0")
+if (( $# == 0 )); then
+  echo >&2 "Usage: ${scriptname} file ..."
+  exit 1
+fi
+
+tmpfile=$(mktemp "${scriptname}-XXXXXX.tmp")
+trap "rm -f $tmpfile" EXIT
+
+OPTSTRING=':fs'
+print_file_name=0
+print_script_name=0
+while getopts ${OPTSTRING} opt; do
+  case ${opt} in
+    f)
+      print_file_name=1
+      ;;
+    s)
+      print_script_name=1  # implies print_file_name
+      ;;
+    ?)
+      echo >&2 "Invalid option: -${OPTARG}."
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+for file; do
+  if [[ -f $file ]]; then
+    if (( print_script_name )); then
+      printf '%s: %s\n' "$(basename -- "$0")" "$file"
+    elif (( print_file_name )); then
+      printf '%s\n' "$file"
+    fi
+    convert -resize 50% "$file" "$tmpfile" &&
+      touch -r "$file" "$tmpfile" &&
+      mv "$tmpfile" "$file"
+  else
+    echo >&2 "No file '$file', skipping."
+  fi
+done
+
