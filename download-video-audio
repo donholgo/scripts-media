@@ -1,0 +1,101 @@
+#!/bin/bash
+
+heading() {
+  printf '\n=== %s ===\n' "$1"
+}
+
+download() {
+  local url=$1
+  local format=$2
+  local outfile=$3
+
+  if [ -f "$outfile" ]; then
+    echo >&2 "File ${outfile} exists already."
+    return
+  fi
+
+  max_retries=10
+  here=$(pwd)
+  local tmpdir=$(mktemp --directory --tmpdir "$(basename -- "$BASH_SOURCE").tmp.XXXXXX")
+  cd "$tmpdir"
+  for ((i=1; i<=max_retries; ++i)); do
+    echo "--- Download attempt ${i}/${max_retries} ---"
+    if yt-dlp --continue --format "$format" --output "$outfile" "$url"; then
+      mv "$outfile" "$here"
+      break
+    fi
+  done
+  cd -
+  rm -rf "$tmpdir"
+}
+
+download_and_merge() {
+  local url=$1
+  local videoformat=$2
+  local audioformat=$3
+
+  heading "Fetch file name for ${url}"
+  outfile=$(yt-dlp --get-filename "$url")
+  if [ -z "$outfile" ]; then
+    echo >&2 "Cannot determine file name for ${url}."
+    exit 3
+  fi
+  echo "File name is: ${outfile}"
+  if [ -f "$outfile" ]; then
+    echo >&2 "File ${outfile} exists already."
+    return
+  fi
+
+  videofile="video.${outfile}"
+  audiofile="audio.${outfile}"
+  trap 'rm -f "$videofile" "$audiofile"' RETURN
+
+  heading "Download audio (${audioformat}) from ${url}"
+  download "$url" "$audioformat" "$audiofile"
+  if ! [ -f "$audiofile" ]; then
+    echo >&2 "Download failed, exiting."
+    exit 4
+  fi
+
+  heading "Download video (${videoformat}) from ${url}"
+  download "$url" "$videoformat" "$videofile"
+  if ! [ -f "$videofile" ]; then
+    echo >&2 "Download failed, exiting."
+    exit 4
+  fi
+
+  heading "Merge video and audio to ${outfile}"
+  ffmpeg -y \
+    -i "$videofile" \
+    -i "$audiofile" \
+    -c:v copy -c:a aac \
+    -map 0:v:0 -map 1:a:0 \
+    "$outfile"
+}
+
+
+if (( $# != 3 )); then
+  echo >&2 "Usage: $(basename -- "$0") {url|txtfile} video-format audio-format"
+  exit 1
+fi
+
+arg=$1
+videoformat=$2
+audioformat=$3
+
+if [[ $arg == *.txt ]]; then
+  if ! [ -f "$arg" ]; then
+    echo >&2 "No file $arg."
+    exit 2
+  fi
+
+  # text file with URLs
+  while IFS= read -r url; do
+    heading "URL from ${arg}: ${url}"
+    [ -n "$url" ] && download_and_merge "$url" "$videoformat" "$audioformat"
+  done <"$arg"
+else
+  # single URL
+  download_and_merge "$arg" "$videoformat" "$audioformat"
+fi
+
