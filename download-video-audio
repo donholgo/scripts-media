@@ -14,10 +14,11 @@ download() {
     return
   fi
 
-  max_retries=10
-  here=$(pwd)
+  local max_retries=10
+  local here=$(pwd)
   local tmpdir=$(mktemp --directory --tmpdir "$(basename -- "$BASH_SOURCE").tmp.XXXXXX")
   cd "$tmpdir"
+  local i
   for ((i=1; i<=max_retries; ++i)); do
     echo "--- Download attempt ${i}/${max_retries} ---"
     if yt-dlp --continue --format "$format" --output "$outfile" "$url"; then
@@ -35,7 +36,7 @@ download_and_merge() {
   local audioformat=$3
 
   heading "Fetch file name for ${url}"
-  outfile=$(yt-dlp --get-filename "$url")
+  local outfile=$(yt-dlp --get-filename "$url")
   if [ -z "$outfile" ]; then
     echo >&2 "Cannot determine file name for ${url}."
     exit 3
@@ -46,8 +47,8 @@ download_and_merge() {
     return
   fi
 
-  videofile="video.${outfile}"
-  audiofile="audio.${outfile}"
+  local videofile="video.${outfile}"
+  local audiofile="audio.${outfile}"
   trap 'rm -f "$videofile" "$audiofile"' RETURN
 
   heading "Download audio (${audioformat}) from ${url}"
@@ -65,7 +66,7 @@ download_and_merge() {
   fi
 
   heading "Merge video and audio to ${outfile}"
-  ffmpeg -y \
+  ffmpeg -nostdin -y \
     -i "$videofile" \
     -i "$audiofile" \
     -c:v copy -c:a aac \
@@ -90,10 +91,16 @@ if [[ $arg == *.txt ]]; then
   fi
 
   # text file with URLs
+  urls=()
   while IFS= read -r url; do
-    heading "URL from ${arg}: ${url}"
-    [ -n "$url" ] && download_and_merge "$url" "$videoformat" "$audioformat"
+    [ -n "$url" ] && urls+=("$url")
   done <"$arg"
+
+  for ((i=0; i<${#urls[@]}; ++i)); do
+    url=${urls[$i]}
+    heading "URL $((i+1))/${#urls[@]} from ${arg}: ${url}"
+    download_and_merge "$url" "$videoformat" "$audioformat"
+  done
 else
   # single URL
   download_and_merge "$arg" "$videoformat" "$audioformat"
