@@ -1,0 +1,32 @@
+#!/bin/bash
+
+if (( $# != 3 )); then
+  echo >&2 "Usage: $(basename -- "$0") <shift-seconds> <infile> <outfile>"
+  exit 1
+fi
+
+shift_seconds=$1
+infile=$2
+outfile=$3
+
+if ! [[ -f $infile ]]; then
+  echo >&2 "No file ${infile}."
+  exit 2
+fi
+
+# https://superuser.com/questions/982342/in-ffmpeg-how-to-delay-only-the-audio-of-a-mp4-video-without-converting-the-au
+opts=()
+opts+=(-y)
+opts+=(-i "$infile")
+opts+=(-itsoffset "${shift_seconds#-}")  # remove '-' (if present) to get absolute value
+opts+=(-i "$infile")
+if [[ "$shift_seconds" == -* ]]; then  # negative audio shift -> do positive video shift instead
+  opts+=(-map 1:v -map 0:a)
+else
+  opts+=(-map 0:v -map 1:a)
+fi
+opts+=(-c copy)
+opts+=("$outfile")
+
+ffmpeg "${opts[@]}"
+
