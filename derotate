@@ -3,10 +3,11 @@
 use strict;
 use warnings;
 use File::Basename;
+use File::Temp qw/tempfile/;
 
 die "Usage: ".(basename $0)." file ...\n" unless @ARGV;
 
-my $tmpfile = "tmpfile.$$.jpg";
+my ($fh1, $tmpfile) = tempfile("derotate-tmp.XXXXXX");
 foreach my $file (@ARGV) {
   my $exif = `exiftool -Orientation -n "$file"`;
   if ($exif =~ /(\d+)/) {
@@ -20,13 +21,24 @@ foreach my $file (@ARGV) {
       $degrees = 270;
     }
     if ($degrees) {
-      print "$file -> rotate $degrees degrees\n";
-      my $ts = (stat $file)[9];
-      system("convert -rotate $degrees '$file' $tmpfile && exiftool -Orientation=1 -n -o - $tmpfile >'$file'");
-      utime $ts, $ts, $file;
-      unlink $tmpfile;
+      print "$file -> rotate $degrees degrees clockwise\n";
+      my $permissions = (stat $file)[2];
+      my $timestamp = (stat $file)[9];
+      system('convert', '-rotate', $degrees, $file, $tmpfile);
+      if ($? != 0) {
+        warn("Could not rotate '$file', skipping.\n");
+        continue;
+      }
+      system('exiftool', '-Orientation=1', '-n', '-q', '-overwrite_original', $tmpfile);
+      if ($? != 0) {
+        warn("Could not rotate temp file for '$file', skipping.\n");
+        continue;
+      }
+      rename $tmpfile, $file;
+      chmod $permissions, $file;
+      utime $timestamp, $timestamp, $file;
     }
   }
-
 }
 
+unlink $tmpfile if -f $tmpfile;
