@@ -36,7 +36,8 @@ for file; do
       printf '%s\n' "$file"
     fi
     convert -resize 25% "$file" "$tmpfile" &&
-      touch -r "$file" "$tmpfile" &&
+      chmod --reference="$file" "$tmpfile" &&
+      touch --reference="$file" "$tmpfile" &&
       mv "$tmpfile" "$file"
   else
     echo >&2 "No file '$file', skipping."
