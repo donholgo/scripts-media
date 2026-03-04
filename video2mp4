@@ -10,7 +10,11 @@ for file; do
   if [[ $mp4 != $file ]]; then
     duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal "$file" | sed 's/\.[0-9]*$//')
     printf 'Converting %s (%s) ...\n' "$file" "$duration"
-    ffmpeg -loglevel warning -stats -i "$file" "$mp4" && touch -r "$file" "$mp4"
+    if [[ $file == *.webm ]]; then
+      ffmpeg -loglevel warning -stats -i "$file" -c copy -strict experimental "$mp4" && touch -r "$file" "$mp4"
+    else
+      ffmpeg -loglevel warning -stats -i "$file" "$mp4" && touch -r "$file" "$mp4"
+    fi
   else
     echo "'$file' already has 'mp4' extension (skipping)."
   fi
