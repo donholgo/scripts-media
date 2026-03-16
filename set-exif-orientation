@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if (( $# < 2 )); then
+  cat >&2 <<EOF
+Usage:
+  $(basename -- "$0") <orientation> <file> ...
+
+Orientation values:
+  1 = Horizontal (normal)
+  2 = Mirror horizontal
+  3 = Rotate 180
+  4 = Mirror vertical
+  5 = Mirror horizontal and rotate 270 CW
+  6 = Rotate 90 CW
+  7 = Mirror horizontal and rotate 90 CW
+  8 = Rotate 270 CW
+
+See:
+  https://exiftool.org/TagNames/EXIF.html
+  http://sylvana.net/jpegcrop/exif_orientation.html
+  https://docs.dataloop.ai/docs/exif-orientation-value
+EOF
+  exit 1
+fi
+
+orientation=$1
+shift
+
+exiftool -n -Orientation=${orientation} -overwrite_original "$@"
